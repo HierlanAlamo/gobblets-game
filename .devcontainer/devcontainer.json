@@ -1,0 +1,12 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src
+{
+	"name": "C++ Ubuntu + Qt6",
+	"image": "mcr.microsoft.com/devcontainers/cpp:ubuntu-22.04",
+
+	// instala qt6 automaticamente
+	"postCreateCommand": "apt-get update && apt-get install -y qt6-base-dev qt6-base-dev-tools",
+
+	// se quiser debugar GUI no futuro, facilita
+	"features": {}
+}
