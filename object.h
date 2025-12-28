@@ -16,16 +16,22 @@ class Object
 private:
     bool dragging = false;
     int offsetX = 0, offsetY = 0;
+    
 public:
     int id = 0;
     int init_x, init_y;
+    Uint8 originalR, originalG, originalB;
+    int startX, startY;
+    bool isPlaced = false;
     Size size;
     void renderObject(SDL_Surface* gScreenSurface);
+    void resetDragState();
     SDL_Surface* sprite = NULL;
     SDL_Rect rect;
     bool moveBody(const SDL_Event& e, Object* pieces[2][6]);
     Object();
     friend bool operator==(const Object& a, const Object& b);
+    
     //~Object();
 
 };

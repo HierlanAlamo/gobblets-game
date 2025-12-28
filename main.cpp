@@ -135,6 +135,24 @@ int main(int argc, char* args[]){
                     }
                 }
 
+                if(render->actualPlayer == PLAYER_1){
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gBBluePiece2.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gBBluePiece.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gMBluePiece2.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gMBluePiece.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gSBluePiece.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gSBluePiece2.moveBody(e, render->pieces);
+                }
+
+                if(!render->isBotON && render->actualPlayer == PLAYER_2){
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gBRedPiece2.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gBRedPiece.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gMRedPiece2.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gMRedPiece.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gSRedPiece2.moveBody(e, render->pieces);
+                    if(!pieceBeingDragged) pieceBeingDragged = render->gSRedPiece.moveBody(e, render->pieces);
+                }
+
                 if(e.type == SDL_MOUSEBUTTONUP){
                     render->PlaceInGrid();
                     render->resetAllPiecesOutsideGrid();
@@ -194,23 +212,8 @@ int main(int argc, char* args[]){
                 }
                 pieceBeingDragged = false;
 
-                if(render->actualPlayer == PLAYER_1){
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gBBluePiece2.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gBBluePiece.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gMBluePiece2.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gMBluePiece.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gSBluePiece.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gSBluePiece2.moveBody(e, render->pieces);
-                }
-
-                if(!render->isBotON && render->actualPlayer == PLAYER_2){
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gBRedPiece2.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gBRedPiece.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gMRedPiece2.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gMRedPiece.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gSRedPiece2.moveBody(e, render->pieces);
-                    if(!pieceBeingDragged) pieceBeingDragged = render->gSRedPiece.moveBody(e, render->pieces);
-                }
+                
+                
             }
             // it changes the background sprite
             if(screenNum == 4 && !newBackground){

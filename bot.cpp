@@ -33,586 +33,508 @@ Bot::Bot(Mode gameMode){
     this->gameMode = gameMode;
 }
 
-StatusEnum Bot::botTurn(Board& board) {
+StatusEnum Bot::botTurn(Board& board){
     StatusEnum result;
     
-    if (this->gameMode == EASY) {
-        // EASY MODE - Exactly as before (random moves)
+    if(this->gameMode == EASY){
         int nextMove;
-        do {
+        do{
             nextMove = randMove();
-            if (nextMove == 1) {
-                // Randomly PLACE a piece
-                if (board.getNbPiecesInHouse(PLAYER_2, randSize()) > 0) {
+            if(nextMove == 1){
+                if(board.getNbPiecesInHouse(PLAYER_2, randSize()) > 0){
                     result = board.placePiece(PLAYER_2, randSize(), randLC(), randLC());
-                } else {
+                }else{
                     result = INVALID_ENTRY;
                 }
-            } else if (nextMove == 2) {
-                // Randomly MOVE a piece
+            }else if(nextMove == 2){
                 int l1 = randLC(), l2 = randLC(), c1 = randLC(), c2 = randLC();
-                if (board.getPlaceHolder(l1-1, c1-1) == PLAYER_1) {
+                if(board.getPlaceHolder(l1-1, c1-1) == PLAYER_1){
                     result = INVALID_ENTRY;
-                } else {
+                }else{
                     result = board.movePiece(l1, c1, l2, c2);
                 }
             }
-        } while (result != OK);
+        }while(result != OK);
         return result;
         
-    } else if (this->gameMode == NORMAL) {
-        // NORMAL MODE - More difficult version (all logic inside this function)
-        // Uses a two-phase strategy: 1) Look for winning moves, 2) Use positional scoring
+    } else if(this->gameMode == NORMAL){
+        // NORMAL mode: basic strategies
+        Size sizes[3] = {SMALL, MEDIUM, LARGE};
         
-        Board tempBoard, opponentTestBoard;
-        double bestScore = -1e9;
-        bool shouldMove = false;
-        int bestFromLine = -1, bestFromCol = -1;
-        int bestToLine = -1, bestToCol = -1;
-        Size bestSize = SMALL;
-        
-        // ===== PHASE 1: LOOK FOR IMMEDIATE WINNING MOVES =====
-        // The bot first checks if it can win in the next move (either by placing or moving)
-        
-        // 1.1 Check for winning PLACE moves
-        for (int line = 0; line < DIMENSIONS; line++) {
-            for (int col = 0; col < DIMENSIONS; col++) {
-                for (int s = SMALL; s <= LARGE; s++) {
-                    Size size = static_cast<Size>(s);
-                    if (board.getNbPiecesInHouse(PLAYER_2, size) == 0) continue;
-                    
-                    // Test placing a piece at this position
-                    tempBoard = Board(board);
-                    StatusEnum status = tempBoard.placePiece(PLAYER_2, size, line + 1, col + 1);
-                    if (status != OK) continue;
-                    
-                    // If this move makes the bot win
-                    if (tempBoard.getWinner() == PLAYER_2) {
-                        // Check if opponent can block on the next move
-                        bool opponentCanBlock = false;
-                        for (int oppLine = 0; oppLine < DIMENSIONS && !opponentCanBlock; oppLine++) {
-                            for (int oppCol = 0; oppCol < DIMENSIONS && !opponentCanBlock; oppCol++) {
-                                for (int oppSize = SMALL; oppSize <= LARGE; oppSize++) {
-                                    Size oppPieceSize = static_cast<Size>(oppSize);
-                                    if (board.getNbPiecesInHouse(PLAYER_1, oppPieceSize) == 0) continue;
-                                    
-                                    // Test if opponent can place a blocking piece
-                                    opponentTestBoard = Board(tempBoard);
-                                    if (opponentTestBoard.placePiece(PLAYER_1, oppPieceSize, oppLine + 1, oppCol + 1) == OK) {
-                                        if (opponentTestBoard.getWinner() == PLAYER_1) {
-                                            opponentCanBlock = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // If opponent cannot block, this is a guaranteed winning move!
-                        if (!opponentCanBlock) {
-                            result = board.placePiece(PLAYER_2, size, line + 1, col + 1);
-                            return result; // Execute immediately
-                        }
-                    }
-                }
-            }
-        }
-        
-        // 1.2 Check for winning MOVE moves
-        for (int fromLine = 0; fromLine < DIMENSIONS; fromLine++) {
-            for (int fromCol = 0; fromCol < DIMENSIONS; fromCol++) {
-                if (board.getPlaceHolder(fromLine, fromCol) != PLAYER_2) continue;
-                
-                Size fromSize = board.getPieceSize(fromLine, fromCol);
-                
-                for (int toLine = 0; toLine < DIMENSIONS; toLine++) {
-                    for (int toCol = 0; toCol < DIMENSIONS; toCol++) {
-                        if (fromLine == toLine && fromCol == toCol) continue;
-                        if (fromSize <= board.getPieceSize(toLine, toCol)) continue;
-                        
-                        tempBoard = Board(board);
-                        StatusEnum status = tempBoard.movePiece(fromLine + 1, fromCol + 1, 
-                                                              toLine + 1, toCol + 1);
-                        if (status != OK) continue;
-                        
-                        // If this move makes the bot win
-                        if (tempBoard.getWinner() == PLAYER_2) {
-                            // Check if opponent can block
-                            bool opponentCanBlock = false;
-                            for (int oppLine = 0; oppLine < DIMENSIONS && !opponentCanBlock; oppLine++) {
-                                for (int oppCol = 0; oppCol < DIMENSIONS && !opponentCanBlock; oppCol++) {
-                                    for (int oppSize = SMALL; oppSize <= LARGE; oppSize++) {
-                                        Size oppPieceSize = static_cast<Size>(oppSize);
-                                        if (board.getNbPiecesInHouse(PLAYER_1, oppPieceSize) == 0) continue;
-                                        
-                                        opponentTestBoard = Board(tempBoard);
-                                        if (opponentTestBoard.placePiece(PLAYER_1, oppPieceSize, oppLine + 1, oppCol + 1) == OK) {
-                                            if (opponentTestBoard.getWinner() == PLAYER_1) {
-                                                opponentCanBlock = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            if (!opponentCanBlock) {
-                                // GUARANTEED WINNING MOVE - execute immediately
-                                result = board.movePiece(fromLine + 1, fromCol + 1,
-                                                       toLine + 1, toCol + 1);
-                                return result;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        // ===== PHASE 2: POSITIONAL STRATEGY (if no immediate win found) =====
-        // If no winning move was found, use a sophisticated scoring system
-        // that evaluates positions based on strategic principles
-        
-        bestScore = -1e9; // Reset best score for phase 2
-        
-        // 2.1 Evaluate all PLACE moves with strategic scoring
-        for (int line = 0; line < DIMENSIONS; line++) {
-            for (int col = 0; col < DIMENSIONS; col++) {
-                for (int s = SMALL; s <= LARGE; s++) {
-                    Size size = static_cast<Size>(s);
-                    if (board.getNbPiecesInHouse(PLAYER_2, size) == 0) continue;
-                    
-                    tempBoard = Board(board);
-                    StatusEnum status = tempBoard.placePiece(PLAYER_2, size, line + 1, col + 1);
-                    if (status != OK) continue;
-                    
-                    double score = 0;
-                    
-                    // STRATEGY 1: Create multiple threats (forks)
-                    // A fork is when you create two or more winning threats at once
-                    int threatsCreated = 0;
-                    
-                    // Count how many rows/columns/diagonals have 2 bot pieces after this move
-                    for (int i = 0; i < DIMENSIONS; i++) {
-                        int rowCount = 0, colCount = 0, diag1Count = 0, diag2Count = 0;
-                        
-                        for (int j = 0; j < DIMENSIONS; j++) {
-                            if (tempBoard.getPlaceHolder(i, j) == PLAYER_2) rowCount++;
-                            if (tempBoard.getPlaceHolder(j, i) == PLAYER_2) colCount++;
-                            if (tempBoard.getPlaceHolder(j, j) == PLAYER_2) diag1Count++;
-                            if (tempBoard.getPlaceHolder(j, DIMENSIONS-1-j) == PLAYER_2) diag2Count++;
-                        }
-                        
-                        if (rowCount == 2) threatsCreated++;
-                        if (colCount == 2) threatsCreated++;
-                        if (diag1Count == 2) threatsCreated++;
-                        if (diag2Count == 2) threatsCreated++;
-                    }
-                    
-                    score += threatsCreated * 500; // Big bonus for creating multiple threats
-                    
-                    // STRATEGY 2: Control key positions
-                    if (line == 1 && col == 1) score += 300; // Center control
-                    if ((line == 0 && col == 0) || (line == 0 && col == 2) || 
-                        (line == 2 && col == 0) || (line == 2 && col == 2)) {
-                        score += 200; // Corner control
-                    }
-                    
-                    // STRATEGY 3: Block opponent who is about to win
-                    if (board.getWinner() == PLAYER_1) {
-                        score += 1000; // Maximum priority to block
-                    }
-                    
-                    // STRATEGY 4: Cover opponent's piece (especially with larger piece)
-                    if (board.getPlaceHolder(line, col) == PLAYER_1) {
-                        score += 400;
-                        Size opponentSize = board.getPieceSize(line, col);
-                        if (size > opponentSize) score += 300; // Extra bonus for covering with larger piece
-                    }
-                    
-                    // STRATEGY 5: Conserve large pieces
-                    if (size == LARGE && board.getPlaceHolder(line, col) == NO_PLAYER) {
-                        score -= 400; // Penalty for using LARGE on empty cell
-                    } else if (size == SMALL) {
-                        score += 50; // Bonus for using SMALL (economical)
-                    }
-                    
-                    // STRATEGY 6: Avoid covering own pieces
-                    if (board.getPlaceHolder(line, col) == PLAYER_2) {
-                        score -= 600; // Big penalty for covering own piece
-                    }
-                    
-                    // Update best move if this score is better
-                    if (score > bestScore) {
-                        bestScore = score;
-                        shouldMove = false;
-                        bestToLine = line;
-                        bestToCol = col;
-                        bestSize = size;
-                    }
-                }
-            }
-        }
-        
-        // 2.2 Evaluate all MOVE moves with strategic scoring
-        for (int fromLine = 0; fromLine < DIMENSIONS; fromLine++) {
-            for (int fromCol = 0; fromCol < DIMENSIONS; fromCol++) {
-                if (board.getPlaceHolder(fromLine, fromCol) != PLAYER_2) continue;
-                
-                Size fromSize = board.getPieceSize(fromLine, fromCol);
-                
-                for (int toLine = 0; toLine < DIMENSIONS; toLine++) {
-                    for (int toCol = 0; toCol < DIMENSIONS; toCol++) {
-                        if (fromLine == toLine && fromCol == toCol) continue;
-                        if (fromSize <= board.getPieceSize(toLine, toCol)) continue;
-                        
-                        tempBoard = Board(board);
-                        StatusEnum status = tempBoard.movePiece(fromLine + 1, fromCol + 1, 
-                                                              toLine + 1, toCol + 1);
-                        if (status != OK) continue;
-                        
-                        double score = 0;
-                        
-                        // STRATEGY 1: Create multiple threats after moving
-                        int threatsCreated = 0;
-                        
-                        for (int i = 0; i < DIMENSIONS; i++) {
-                            int rowCount = 0, colCount = 0, diag1Count = 0, diag2Count = 0;
-                            
-                            for (int j = 0; j < DIMENSIONS; j++) {
-                                if (tempBoard.getPlaceHolder(i, j) == PLAYER_2) rowCount++;
-                                if (tempBoard.getPlaceHolder(j, i) == PLAYER_2) colCount++;
-                                if (tempBoard.getPlaceHolder(j, j) == PLAYER_2) diag1Count++;
-                                if (tempBoard.getPlaceHolder(j, DIMENSIONS-1-j) == PLAYER_2) diag2Count++;
-                            }
-                            
-                            if (rowCount == 2) threatsCreated++;
-                            if (colCount == 2) threatsCreated++;
-                            if (diag1Count == 2) threatsCreated++;
-                            if (diag2Count == 2) threatsCreated++;
-                        }
-                        
-                        score += threatsCreated * 600; // Even bigger bonus for creating threats by moving
-                        
-                        // STRATEGY 2: Block opponent who is winning
-                        if (board.getWinner() == PLAYER_1 && tempBoard.getWinner() != PLAYER_1) {
-                            score += 1500; // Critical defensive move
-                        }
-                        
-                        // STRATEGY 3: Move to strategic position
-                        if (toLine == 1 && toCol == 1) score += 400; // Center
-                        if ((toLine == 0 && toCol == 0) || (toLine == 0 && toCol == 2) || 
-                            (toLine == 2 && toCol == 0) || (toLine == 2 && toCol == 2)) {
-                            score += 300; // Corners
-                        }
-                        
-                        // STRATEGY 4: Block opponent's piece at destination
-                        if (board.getPlaceHolder(toLine, toCol) == PLAYER_1) {
-                            score += 600;
-                            Size opponentSize = board.getPieceSize(toLine, toCol);
-                            if (fromSize > opponentSize) score += 400; // Bonus for blocking with larger piece
-                        }
-                        
-                        // STRATEGY 5: Penalty for breaking own row/column
-                        int rowBefore = 0, colBefore = 0;
-                        for (int k = 0; k < DIMENSIONS; k++) {
-                            if (board.getPlaceHolder(fromLine, k) == PLAYER_2) rowBefore++;
-                            if (board.getPlaceHolder(k, fromCol) == PLAYER_2) colBefore++;
-                        }
-                        
-                        if (rowBefore == 2) score -= 800; // Big penalty for leaving a row with 2 pieces
-                        if (colBefore == 2) score -= 800; // Big penalty for leaving a column with 2 pieces
-                        
-                        // STRATEGY 6: Move large piece to important position
-                        if (fromSize == LARGE && (toLine == 1 || toCol == 1)) {
-                            score += 500; // Bonus for moving LARGE to central row/column
-                        }
-                        
-                        // Update best move if this score is better
-                        if (score > bestScore) {
-                            bestScore = score;
-                            shouldMove = true;
-                            bestFromLine = fromLine;
-                            bestFromCol = fromCol;
-                            bestToLine = toLine;
-                            bestToCol = toCol;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // ===== PHASE 3: EXECUTE THE BEST FOUND MOVE =====
-        if (bestScore == -1e9) {
-            // FALLBACK: No good move found, try anything valid
-            for (int s = SMALL; s <= LARGE; s++) {
-                Size size = static_cast<Size>(s);
-                if (board.getNbPiecesInHouse(PLAYER_2, size) > 0) {
-                    for (int i = 0; i < DIMENSIONS; i++) {
-                        for (int j = 0; j < DIMENSIONS; j++) {
-                            result = board.placePiece(PLAYER_2, size, i + 1, j + 1);
-                            if (result == OK) return OK;
-                        }
-                    }
-                }
-            }
-            return INVALID_ENTRY;
-        }
-        
-        // Execute either the best PLACE or MOVE move
-        if (shouldMove) {
-            result = board.movePiece(bestFromLine + 1, bestFromCol + 1,
-                                   bestToLine + 1, bestToCol + 1);
-        } else {
-            result = board.placePiece(PLAYER_2, bestSize, bestToLine + 1, bestToCol + 1);
-        }
-        return result;
-        
-    } else if (this->gameMode == HARD) {
-        // HARD MODE - Very difficult version (all logic inside this function)
-        // Uses a simplified mini-max algorithm: thinks 2 moves ahead
-        // Evaluates: Bot move → Best opponent response → Choose move that leaves best position
-        
-        double bestOverallScore = -1e9;
-        bool bestIsMove = false;
-        int bestFromLine = -1, bestFromCol = -1;
-        int bestToLine = -1, bestToCol = -1;
-        Size bestSize = SMALL;
-        
-        // ===== EVALUATE ALL POSSIBLE BOT MOVES =====
-        // For each possible move (PLACE or MOVE), simulate it and then
-        // simulate the best possible opponent response
-        
-        for (int moveType = 0; moveType < 2; moveType++) { // 0 = PLACE, 1 = MOVE
+        // 1. Try to win by placing a piece
+        for(int s = 0; s < 3; s++){
+            if(board.getNbPiecesInHouse(PLAYER_2, sizes[s]) == 0) continue;
             
-            if (moveType == 0) { // BOT MOVE: PLACE A PIECE
-                for (int line = 0; line < DIMENSIONS; line++) {
-                    for (int col = 0; col < DIMENSIONS; col++) {
-                        for (int s = SMALL; s <= LARGE; s++) {
-                            Size size = static_cast<Size>(s);
-                            if (board.getNbPiecesInHouse(PLAYER_2, size) == 0) continue;
-                            
-                            // Simulate bot placing a piece
-                            Board tempBoard(board);
-                            StatusEnum status = tempBoard.placePiece(PLAYER_2, size, line + 1, col + 1);
-                            if (status != OK) continue;
-                            
-                            // ===== STEP 1: Calculate bot's advantage after this move =====
-                            double botAdvantage = 0;
-                            
-                            // Complex position analysis
-                            for (int i = 0; i < DIMENSIONS; i++) {
-                                for (int j = 0; j < DIMENSIONS; j++) {
-                                    if (tempBoard.getPlaceHolder(i, j) == PLAYER_2) {
-                                        // Bonus for controlling a cell
-                                        botAdvantage += 100;
-                                        
-                                        // Bonus for being in a row/column with other bot pieces
-                                        int sameRowPieces = 0, sameColPieces = 0;
-                                        for (int k = 0; k < DIMENSIONS; k++) {
-                                            if (tempBoard.getPlaceHolder(i, k) == PLAYER_2) sameRowPieces++;
-                                            if (tempBoard.getPlaceHolder(k, j) == PLAYER_2) sameColPieces++;
-                                        }
-                                        
-                                        if (sameRowPieces == 2) botAdvantage += 300; // Row with 2 bot pieces
-                                        if (sameColPieces == 2) botAdvantage += 300; // Column with 2 bot pieces
-                                    } else if (tempBoard.getPlaceHolder(i, j) == PLAYER_1) {
-                                        // Penalty for opponent controlling a cell
-                                        botAdvantage -= 80;
-                                    }
-                                }
-                            }
-                            
-                            // Special bonus if bot is winning after this move
-                            if (tempBoard.getWinner() == PLAYER_2) {
-                                botAdvantage += 2000;
-                            }
-                            
-                            // ===== STEP 2: Simulate the BEST POSSIBLE OPPONENT RESPONSE =====
-                            // The bot assumes the opponent will play optimally
-                            double bestOpponentResponse = -1e9;
-                            
-                            // Opponent can PLACE a piece
-                            for (int oppLine = 0; oppLine < DIMENSIONS; oppLine++) {
-                                for (int oppCol = 0; oppCol < DIMENSIONS; oppCol++) {
-                                    for (int oppSize = SMALL; oppSize <= LARGE; oppSize++) {
-                                        Size opponentSize = static_cast<Size>(oppSize);
-                                        if (tempBoard.getNbPiecesInHouse(PLAYER_1, opponentSize) == 0) continue;
-                                        
-                                        Board opponentBoard(tempBoard);
-                                        StatusEnum oppStatus = opponentBoard.placePiece(PLAYER_1, opponentSize, oppLine + 1, oppCol + 1);
-                                        if (oppStatus != OK) continue;
-                                        
-                                        double opponentAdvantage = 0;
-                                        
-                                        // Analyze opponent's position
-                                        for (int i = 0; i < DIMENSIONS; i++) {
-                                            for (int j = 0; j < DIMENSIONS; j++) {
-                                                if (opponentBoard.getPlaceHolder(i, j) == PLAYER_1) {
-                                                    opponentAdvantage += 100;
-                                                    
-                                                    int sameRowPieces = 0, sameColPieces = 0;
-                                                    for (int k = 0; k < DIMENSIONS; k++) {
-                                                        if (opponentBoard.getPlaceHolder(i, k) == PLAYER_1) sameRowPieces++;
-                                                        if (opponentBoard.getPlaceHolder(k, j) == PLAYER_1) sameColPieces++;
-                                                    }
-                                                    
-                                                    if (sameRowPieces == 2) opponentAdvantage += 350;
-                                                    if (sameColPieces == 2) opponentAdvantage += 350;
-                                                }
-                                            }
-                                        }
-                                        
-                                        if (opponentBoard.getWinner() == PLAYER_1) {
-                                            opponentAdvantage += 2500;
-                                        }
-                                        
-                                        // Track the best response the opponent could make
-                                        if (opponentAdvantage > bestOpponentResponse) {
-                                            bestOpponentResponse = opponentAdvantage;
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // Opponent can also MOVE a piece
-                            for (int oppFromLine = 0; oppFromLine < DIMENSIONS; oppFromLine++) {
-                                for (int oppFromCol = 0; oppFromCol < DIMENSIONS; oppFromCol++) {
-                                    if (tempBoard.getPlaceHolder(oppFromLine, oppFromCol) != PLAYER_1) continue;
-                                    
-                                    Size oppFromSize = tempBoard.getPieceSize(oppFromLine, oppFromCol);
-                                    
-                                    for (int oppToLine = 0; oppToLine < DIMENSIONS; oppToLine++) {
-                                        for (int oppToCol = 0; oppToCol < DIMENSIONS; oppToCol++) {
-                                            if (oppFromLine == oppToLine && oppFromCol == oppToCol) continue;
-                                            if (oppFromSize <= tempBoard.getPieceSize(oppToLine, oppToCol)) continue;
-                                            
-                                            Board opponentBoard(tempBoard);
-                                            StatusEnum oppStatus = opponentBoard.movePiece(oppFromLine + 1, oppFromCol + 1, 
-                                                                                         oppToLine + 1, oppToCol + 1);
-                                            if (oppStatus != OK) continue;
-                                            
-                                            double opponentAdvantage = 0;
-                                            
-                                            for (int i = 0; i < DIMENSIONS; i++) {
-                                                for (int j = 0; j < DIMENSIONS; j++) {
-                                                    if (opponentBoard.getPlaceHolder(i, j) == PLAYER_1) {
-                                                        opponentAdvantage += 100;
-                                                        
-                                                        int sameRowPieces = 0, sameColPieces = 0;
-                                                        for (int k = 0; k < DIMENSIONS; k++) {
-                                                            if (opponentBoard.getPlaceHolder(i, k) == PLAYER_1) sameRowPieces++;
-                                                            if (opponentBoard.getPlaceHolder(k, j) == PLAYER_1) sameColPieces++;
-                                                        }
-                                                        
-                                                        if (sameRowPieces == 2) opponentAdvantage += 350;
-                                                        if (sameColPieces == 2) opponentAdvantage += 350;
-                                                    }
-                                                }
-                                            }
-                                            
-                                            if (opponentBoard.getWinner() == PLAYER_1) {
-                                                opponentAdvantage += 2500;
-                                            }
-                                            
-                                            if (opponentAdvantage > bestOpponentResponse) {
-                                                bestOpponentResponse = opponentAdvantage;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // ===== STEP 3: Calculate final score =====
-                            // Final score = Bot advantage - (70% of opponent's best response)
-                            // The 0.7 factor assumes opponent won't play perfectly
-                            double finalScore = botAdvantage - (bestOpponentResponse * 0.7);
-                            
-                            if (finalScore > bestOverallScore) {
-                                bestOverallScore = finalScore;
-                                bestIsMove = false;
-                                bestToLine = line;
-                                bestToCol = col;
-                                bestSize = size;
-                            }
-                        }
+            for(int l = 1; l <= 3; l++){
+                for(int c = 1; c <= 3; c++){
+                    // Test the move directly without creating a copy
+                    // Save original state to restore if needed
+                    Board originalBoard = board;
+                    result = board.placePiece(PLAYER_2, sizes[s], l, c);
+                    if(result == OK && board.getWinner() == PLAYER_2){
+                        return OK; // Success!
+                    }else{
+                        // Restore original board if move didn't win
+                        board = originalBoard;
                     }
                 }
-            } 
-            else { // BOT MOVE: MOVE A PIECE
-                // (Same logic as PLACE but for moving pieces)
-                // Note: For brevity, the detailed comments are similar to the PLACE section
+            }
+        }
+        
+        // 2. Try to win by moving a piece
+        for(int srcL = 1; srcL <= 3; srcL++){
+            for(int srcC = 1; srcC <= 3; srcC++){
+                if(board.getPlaceHolder(srcL-1, srcC-1) != PLAYER_2) continue;
                 
-                for (int fromLine = 0; fromLine < DIMENSIONS; fromLine++) {
-                    for (int fromCol = 0; fromCol < DIMENSIONS; fromCol++) {
-                        if (board.getPlaceHolder(fromLine, fromCol) != PLAYER_2) continue;
+                for(int dstL = 1; dstL <= 3; dstL++){
+                    for(int dstC = 1; dstC <= 3; dstC++){
+                        if(srcL == dstL && srcC == dstC) continue;
                         
-                        Size fromSize = board.getPieceSize(fromLine, fromCol);
-                        
-                        for (int toLine = 0; toLine < DIMENSIONS; toLine++) {
-                            for (int toCol = 0; toCol < DIMENSIONS; toCol++) {
-                                if (fromLine == toLine && fromCol == toCol) continue;
-                                if (fromSize <= board.getPieceSize(toLine, toCol)) continue;
-                                
-                                Board tempBoard(board);
-                                StatusEnum status = tempBoard.movePiece(fromLine + 1, fromCol + 1, 
-                                                                      toLine + 1, toCol + 1);
-                                if (status != OK) continue;
-                                
-                                // Same evaluation logic as PLACE moves
-                                double botAdvantage = 0;
-                                
-                                for (int i = 0; i < DIMENSIONS; i++) {
-                                    for (int j = 0; j < DIMENSIONS; j++) {
-                                        if (tempBoard.getPlaceHolder(i, j) == PLAYER_2) {
-                                            botAdvantage += 100;
-                                            
-                                            int sameRowPieces = 0, sameColPieces = 0;
-                                            for (int k = 0; k < DIMENSIONS; k++) {
-                                                if (tempBoard.getPlaceHolder(i, k) == PLAYER_2) sameRowPieces++;
-                                                if (tempBoard.getPlaceHolder(k, j) == PLAYER_2) sameColPieces++;
-                                            }
-                                            
-                                            if (sameRowPieces == 2) botAdvantage += 300;
-                                            if (sameColPieces == 2) botAdvantage += 300;
-                                        }
-                                    }
-                                }
-                                
-                                if (tempBoard.getWinner() == PLAYER_2) {
-                                    botAdvantage += 2000;
-                                }
-                                
-                                double bestOpponentResponse = -1e9;
-                                
-                                // Simulate opponent responses (same as in PLACE section)
-                                // ... (identical opponent response simulation code) ...
-                                
-                                double finalScore = botAdvantage - (bestOpponentResponse * 0.7);
-                                
-                                if (finalScore > bestOverallScore) {
-                                    bestOverallScore = finalScore;
-                                    bestIsMove = true;
-                                    bestFromLine = fromLine;
-                                    bestFromCol = fromCol;
-                                    bestToLine = toLine;
-                                    bestToCol = toCol;
-                                }
-                            }
+                        Board originalBoard = board;
+                        result = board.movePiece(srcL, srcC, dstL, dstC);
+                        if(result == OK && board.getWinner() == PLAYER_2){
+                            return OK; // Success!
+                        }else{
+                            board = originalBoard;
                         }
                     }
                 }
             }
         }
         
-        // ===== EXECUTE THE BEST FOUND MOVE =====
-        if (bestIsMove) {
-            result = board.movePiece(bestFromLine + 1, bestFromCol + 1,
-                                   bestToLine + 1, bestToCol + 1);
-        } else {
-            result = board.placePiece(PLAYER_2, bestSize, bestToLine + 1, bestToCol + 1);
+        // 3. Block PLAYER_1 if they can win
+        // Check if PLAYER_1 can win by placing a piece
+        for(int s = 0; s < 3; s++){
+            for(int l = 1; l <= 3; l++){
+                for(int c = 1; c <= 3; c++){
+                    Board originalBoard = board;
+                    result = board.placePiece(PLAYER_1, sizes[s], l, c);
+                    if(result == OK && board.getWinner() == PLAYER_1){
+                        // Restore board and try to block
+                        board = originalBoard;
+                        
+                        // Try to block with larger piece
+                        for(int s2 = 2; s2 >= 0; s2--){
+                            if(board.getNbPiecesInHouse(PLAYER_2, sizes[s2]) > 0){
+                                if(sizes[s2] > board.getPieceSize(l-1, c-1)){
+                                    result = board.placePiece(PLAYER_2, sizes[s2], l, c);
+                                    if(result == OK) return OK;
+                                }
+                            }
+                        }
+                    }else{
+                        board = originalBoard;
+                    }
+                }
+            }
         }
         
-        return result;
+        // Check if PLAYER_1 can win by moving a piece
+        for(int srcL = 1; srcL <= 3; srcL++){
+            for(int srcC = 1; srcC <= 3; srcC++){
+                if(board.getPlaceHolder(srcL-1, srcC-1) != PLAYER_1) continue;
+                
+                for(int dstL = 1; dstL <= 3; dstL++){
+                    for(int dstC = 1; dstC <= 3; dstC++){
+                        if(srcL == dstL && srcC == dstC) continue;
+                        
+                        Board originalBoard = board;
+                        result = board.movePiece(srcL, srcC, dstL, dstC);
+                        if(result == OK && board.getWinner() == PLAYER_1){
+                            // Restore board and try to block destination
+                            board = originalBoard;
+                            
+                            for(int s2 = 2; s2 >= 0; s2--){
+                                if(board.getNbPiecesInHouse(PLAYER_2, sizes[s2]) > 0){
+                                    if(sizes[s2] > board.getPieceSize(dstL-1, dstC-1)){
+                                        result = board.placePiece(PLAYER_2, sizes[s2], dstL, dstC);
+                                        if(result == OK) return OK;
+                                    }
+                                }
+                            }
+                        }else{
+                            board = originalBoard;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 4. Offensive strategies - prioritize center
+        // Try to place in center (2,2)
+        for(int s = 2; s >= 0; s--){
+            if(board.getNbPiecesInHouse(PLAYER_2, sizes[s]) > 0){
+                result = board.placePiece(PLAYER_2, sizes[s], 2, 2);
+                if(result == OK) return OK;
+            }
+        }
+        
+        // Try to move to center
+        for(int srcL = 1; srcL <= 3; srcL++){
+            for(int srcC = 1; srcC <= 3; srcC++){
+                if(board.getPlaceHolder(srcL-1, srcC-1) != PLAYER_2) continue;
+                
+                result = board.movePiece(srcL, srcC, 2, 2);
+                if(result == OK) return OK;
+            }
+        }
+        
+        // Try to place in corners
+        int corners[4][2] = {{1,1}, {1,3}, {3,1}, {3,3}};
+        for(int i = 0; i < 4; i++){
+            for(int s = 2; s >= 0; s--){
+                if(board.getNbPiecesInHouse(PLAYER_2, sizes[s]) > 0){
+                    result = board.placePiece(PLAYER_2, sizes[s], corners[i][0], corners[i][1]);
+                    if(result == OK) return OK;
+                }
+            }
+        }
+        
+        // 5. Intelligent random move (don't waste large pieces)
+        int attempts = 0;
+        while(attempts < 20){
+            int moveType = randMove();
+            
+            if(moveType == 1){ // Place piece
+                // Prioritize medium and small pieces first
+                int sizeOrder[3] = {1, 0, 2}; // MEDIUM, SMALL, LARGE
+                for(int i = 0; i < 3; i++){
+                    Size s = sizes[sizeOrder[i]];
+                    if(board.getNbPiecesInHouse(PLAYER_2, s) > 0){
+                        int l = randLC();
+                        int c = randLC();
+                        result = board.placePiece(PLAYER_2, s, l, c);
+                        if(result == OK) return OK;
+                    }
+                }
+            }else{ // Move piece
+                int srcL = randLC();
+                int srcC = randLC();
+                int dstL = randLC();
+                int dstC = randLC();
+                
+                if(board.getPlaceHolder(srcL-1, srcC-1) == PLAYER_2){
+                    result = board.movePiece(srcL, srcC, dstL, dstC);
+                    if(result == OK) return OK;
+                }
+            }
+            attempts++;
+        }
+        
+        // 6. Last resort: any valid move
+        for(int l = 1; l <= 3; l++){
+            for(int c = 1; c <= 3; c++){
+                for(int s = 0; s < 3; s++){
+                    if(board.getNbPiecesInHouse(PLAYER_2, sizes[s]) > 0){
+                        result = board.placePiece(PLAYER_2, sizes[s], l, c);
+                        if(result == OK) return OK;
+                    }
+                }
+            }
+        }
+        
+        for(int srcL = 1; srcL <= 3; srcL++){
+            for(int srcC = 1; srcC <= 3; srcC++){
+                if(board.getPlaceHolder(srcL-1, srcC-1) != PLAYER_2) continue;
+                
+                for(int dstL = 1; dstL <= 3; dstL++){
+                    for(int dstC = 1; dstC <= 3; dstC++){
+                        if(srcL == dstL && srcC == dstC) continue;
+                        result = board.movePiece(srcL, srcC, dstL, dstC);
+                        if(result == OK) return OK;
+                    }
+                }
+            }
+        }
+        
+        return INVALID_ENTRY;
+        
+    }else if(this->gameMode == HARD){
+        // HARD mode: advanced strategies with position evaluation
+        Size sizes[3] = {SMALL, MEDIUM, LARGE};
+        
+        // 1. Try to win immediately (same as NORMAL)
+        for(int s = 0; s < 3; s++){
+            if(board.getNbPiecesInHouse(PLAYER_2, sizes[s]) == 0) continue;
+            
+            for(int l = 1; l <= 3; l++){
+                for(int c = 1; c <= 3; c++){
+                    Board originalBoard = board;
+                    result = board.placePiece(PLAYER_2, sizes[s], l, c);
+                    if(result == OK && board.getWinner() == PLAYER_2){
+                        return OK;
+                    }else{
+                        board = originalBoard;
+                    }
+                }
+            }
+        }
+        
+        for(int srcL = 1; srcL <= 3; srcL++){
+            for(int srcC = 1; srcC <= 3; srcC++){
+                if(board.getPlaceHolder(srcL-1, srcC-1) != PLAYER_2) continue;
+                for(int dstL = 1; dstL <= 3; dstL++){
+                    for(int dstC = 1; dstC <= 3; dstC++){
+                        if(srcL == dstL && srcC == dstC) continue;
+                        Board originalBoard = board;
+                        result = board.movePiece(srcL, srcC, dstL, dstC);
+                        if(result == OK && board.getWinner() == PLAYER_2){
+                            return OK;
+                        }else{
+                            board = originalBoard;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 2. Block PLAYER_1 (same as NORMAL)
+        for(int s = 0; s < 3; s++){
+            for(int l = 1; l <= 3; l++){
+                for(int c = 1; c <= 3; c++){
+                    Board originalBoard = board;
+                    result = board.placePiece(PLAYER_1, sizes[s], l, c);
+                    if(result == OK && board.getWinner() == PLAYER_1){
+                        board = originalBoard;
+                        for(int s2 = 2; s2 >= 0; s2--){
+                            if(board.getNbPiecesInHouse(PLAYER_2, sizes[s2]) > 0){
+                                if(sizes[s2] > board.getPieceSize(l-1, c-1)){
+                                    result = board.placePiece(PLAYER_2, sizes[s2], l, c);
+                                    if(result == OK) return OK;
+                                }
+                            }
+                        }
+                    }else{
+                        board = originalBoard;
+                    }
+                }
+            }
+        }
+        
+        for(int srcL = 1; srcL <= 3; srcL++){
+            for(int srcC = 1; srcC <= 3; srcC++){
+                if(board.getPlaceHolder(srcL-1, srcC-1) != PLAYER_1) continue;
+                
+                for(int dstL = 1; dstL <= 3; dstL++){
+                    for(int dstC = 1; dstC <= 3; dstC++){
+                        if(srcL == dstL && srcC == dstC) continue;
+                        
+                        Board originalBoard = board;
+                        result = board.movePiece(srcL, srcC, dstL, dstC);
+                        if(result == OK && board.getWinner() == PLAYER_1){
+                            board = originalBoard;
+                            for(int s2 = 2; s2 >= 0; s2--){
+                                if(board.getNbPiecesInHouse(PLAYER_2, sizes[s2]) > 0){
+                                    if(sizes[s2] > board.getPieceSize(dstL-1, dstC-1)){
+                                        result = board.placePiece(PLAYER_2, sizes[s2], dstL, dstC);
+                                        if(result == OK) return OK;
+                                    }
+                                }
+                            }
+                        }else{
+                            board = originalBoard;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 3. Evaluate best positions with point system
+        int bestScore = -1000;
+        int bestMoveType = 0; // 1=place, 2=move
+        int bestData[5] = {0}; // move data
+        
+        // Evaluate piece placements
+        for(int s = 0; s < 3; s++){
+            if(board.getNbPiecesInHouse(PLAYER_2, sizes[s]) == 0) continue;
+            for(int l = 1; l <= 3; l++){
+                for(int c = 1; c <= 3; c++){
+                    Board originalBoard = board;
+                    result = board.placePiece(PLAYER_2, sizes[s], l, c);
+                    if(result != OK){
+                        board = originalBoard;
+                        continue;
+                    }
+                    
+                    int score = 0;
+                    
+                    // Bonus for center
+                    if(l == 2 && c == 2) score += 20;
+                    
+                    // Bonus for corners
+                    if((l == 1 && c == 1) || (l == 1 && c == 3) || 
+                       (l == 3 && c == 1) || (l == 3 && c == 3)) score += 10;
+                    
+                    // Bonus for creating threats
+                    Player winner = board.getWinner();
+                    if(winner == PLAYER_2){
+                        score += 1000;
+                    }else{
+                        // Check almost complete lines
+                        for(int i = 0; i < 3; i++){
+                            int p2_in_row = 0, p1_in_row = 0;
+                            int p2_in_col = 0, p1_in_col = 0;
+                            
+                            for(int j = 0; j < 3; j++){
+                                if(board.getPlaceHolder(i, j) == PLAYER_2) p2_in_row++;
+                                else if(board.getPlaceHolder(i, j) == PLAYER_1) p1_in_row++;
+                                
+                                if(board.getPlaceHolder(j, i) == PLAYER_2) p2_in_col++;
+                                else if(board.getPlaceHolder(j, i) == PLAYER_1) p1_in_col++;
+                            }
+                            
+                            if(p2_in_row == 2 && p1_in_row == 0) score += 30;
+                            if(p2_in_col == 2 && p1_in_col == 0) score += 30;
+                        }
+                    }
+                    
+                    // Penalty for using large piece unnecessarily
+                    if(sizes[s] == LARGE && originalBoard.getPieceSize(l-1, c-1) == NONE){
+                        score -= 5;
+                    }
+                    
+                    // Restore board and save score
+                    board = originalBoard;
+                    
+                    if(score > bestScore){
+                        bestScore = score;
+                        bestMoveType = 1;
+                        bestData[0] = s;
+                        bestData[1] = l;
+                        bestData[2] = c;
+                    }
+                }
+            }
+        }
+        
+        // Evaluate piece movements
+        for(int srcL = 1; srcL <= 3; srcL++){
+            for(int srcC = 1; srcC <= 3; srcC++){
+                if(board.getPlaceHolder(srcL-1, srcC-1) != PLAYER_2) continue;
+                
+                for(int dstL = 1; dstL <= 3; dstL++){
+                    for(int dstC = 1; dstC <= 3; dstC++){
+                        if(srcL == dstL && srcC == dstC) continue;
+                        
+                        Board originalBoard = board;
+                        result = board.movePiece(srcL, srcC, dstL, dstC);
+                        if(result != OK){
+                            board = originalBoard;
+                            continue;
+                        }
+                        
+                        int score = 0;
+                        
+                        // Bonus for moving to center
+                        if(dstL == 2 && dstC == 2) score += 25;
+                        
+                        // Bonus for creating threats
+                        Player winner = board.getWinner();
+                        if(winner == PLAYER_2){
+                            score += 1000;
+                        } else {
+                            // Check almost complete lines
+                            for(int i = 0; i < 3; i++){
+                                int p2_in_row = 0, p1_in_row = 0;
+                                int p2_in_col = 0, p1_in_col = 0;
+                                
+                                for(int j = 0; j < 3; j++){
+                                    if(board.getPlaceHolder(i, j) == PLAYER_2) p2_in_row++;
+                                    else if(board.getPlaceHolder(i, j) == PLAYER_1) p1_in_row++;
+                                    
+                                    if(board.getPlaceHolder(j, i) == PLAYER_2) p2_in_col++;
+                                    else if(board.getPlaceHolder(j, i) == PLAYER_1) p1_in_col++;
+                                }
+                                
+                                if(p2_in_row == 2 && p1_in_row == 0) score += 35;
+                                if(p2_in_col == 2 && p1_in_col == 0) score += 35;
+                            }
+                        }
+                        
+                        // Bonus for capturing opponent's piece
+                        if(originalBoard.getPlaceHolder(dstL-1, dstC-1) == PLAYER_1){
+                            score += 15;
+                        }
+                        
+                        // Restore board and save score
+                        board = originalBoard;
+                        
+                        if(score > bestScore){
+                            bestScore = score;
+                            bestMoveType = 2;
+                            bestData[0] = srcL;
+                            bestData[1] = srcC;
+                            bestData[2] = dstL;
+                            bestData[3] = dstC;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Execute best move found
+        if(bestMoveType == 1){
+            Size pieceSize = sizes[bestData[0]];
+            int line = bestData[1];
+            int column = bestData[2];
+            result = board.placePiece(PLAYER_2, pieceSize, line, column);
+            if(result == OK) return OK;
+        } else if(bestMoveType == 2){
+            int srcLine = bestData[0];
+            int srcColumn = bestData[1];
+            int dstLine = bestData[2];
+            int dstColumn = bestData[3];
+            result = board.movePiece(srcLine, srcColumn, dstLine, dstColumn);
+            if(result == OK) return OK;
+        }
+        
+        // 4. Fallback: NORMAL mode strategy
+        // Try center
+        for(int s = 2; s >= 0; s--){
+            if(board.getNbPiecesInHouse(PLAYER_2, sizes[s]) > 0){
+                result = board.placePiece(PLAYER_2, sizes[s], 2, 2);
+                if(result == OK) return OK;
+            }
+        }
+        
+        // Try to move to center
+        for(int srcL = 1; srcL <= 3; srcL++){
+            for(int srcC = 1; srcC <= 3; srcC++){
+                if(board.getPlaceHolder(srcL-1, srcC-1) != PLAYER_2) continue;
+                
+                result = board.movePiece(srcL, srcC, 2, 2);
+                if(result == OK) return OK;
+            }
+        }
+        
+        // Last resort: random move
+        int attempts = 0;
+        while(attempts < 30){
+            int moveType = randMove();
+            
+            if(moveType == 1){
+                Size s = randSize();
+                if(board.getNbPiecesInHouse(PLAYER_2, s) > 0) {
+                    int l = randLC();
+                    int c = randLC();
+                    result = board.placePiece(PLAYER_2, s, l, c);
+                    if(result == OK) return OK;
+                }
+            }else{
+                int srcL = randLC();
+                int srcC = randLC();
+                int dstL = randLC();
+                int dstC = randLC();
+                
+                if(board.getPlaceHolder(srcL-1, srcC-1) == PLAYER_2){
+                    result = board.movePiece(srcL, srcC, dstL, dstC);
+                    if(result == OK) return OK;
+                }
+            }
+            attempts++;
+        }
+        
+        return INVALID_ENTRY;
     }
     
     return INVALID_ENTRY;

@@ -104,10 +104,10 @@ StatusEnum Board::placePiece(Player currentPlayer, Size pieceSize, int line, int
     }else if(getPieceSize(line-1, column-1) != NONE){
         next_mov.state[line-1][column-1].push(Piece(currentPlayer, pieceSize));
         if(currentPlayer == PLAYER_1 && this->p1Pieces[pieceSize-1]!=0){
-            if(pieceSize == LARGE && getWinner() == PLAYER_2 && getPlaceHolder(line-1,column-1) == PLAYER_2 && next_mov.getWinner() != PLAYER_2){
+            if(pieceSize == LARGE && getWinner() == PLAYER_2 && getPlaceHolder(line-1,column-1) == PLAYER_2 /*&& next_mov.getWinner() != PLAYER_2*/){
                 this->state[line-1][column-1].push(Piece(currentPlayer, pieceSize));
                 this->p1Pieces[pieceSize-1]--;
-            }else if(pieceSize == MEDIUM && getWinner() == PLAYER_2 && this->state[line-1][column-1].canPush(Piece(currentPlayer, pieceSize)) && getPlaceHolder(line-1,column-1) == PLAYER_2 && next_mov.getWinner() != PLAYER_2){
+            }else if(pieceSize == MEDIUM && getWinner() == PLAYER_2 && this->state[line-1][column-1].canPush(Piece(currentPlayer, pieceSize)) && getPlaceHolder(line-1,column-1) == PLAYER_2 /*&& next_mov.getWinner() != PLAYER_2*/){
                 this->state[line-1][column-1].push(Piece(currentPlayer, pieceSize));
                 this->p1Pieces[pieceSize-1]--;
             }
@@ -122,10 +122,10 @@ StatusEnum Board::placePiece(Player currentPlayer, Size pieceSize, int line, int
                 return INVALID_ENTRY;
             }
         }else if(currentPlayer == PLAYER_2 && this->p2Pieces[pieceSize-1]!=0 ){
-            if(pieceSize == LARGE && getWinner() == PLAYER_1 && getPlaceHolder(line-1,column-1) == PLAYER_1 && next_mov.getWinner() != PLAYER_1){
+            if(pieceSize == LARGE && getWinner() == PLAYER_1 && getPlaceHolder(line-1,column-1) == PLAYER_1 /*&& next_mov.getWinner() != PLAYER_1*/){
                 this->state[line-1][column-1].push(Piece(currentPlayer, pieceSize));
                 this->p2Pieces[pieceSize-1]--;
-            }else if(pieceSize == MEDIUM && getWinner() == PLAYER_1 && this->state[line-1][column-1].canPush(Piece(currentPlayer, pieceSize)) && getPlaceHolder(line-1,column-1) == PLAYER_1 && next_mov.getWinner() != PLAYER_1){
+            }else if(pieceSize == MEDIUM && getWinner() == PLAYER_1 && this->state[line-1][column-1].canPush(Piece(currentPlayer, pieceSize)) && getPlaceHolder(line-1,column-1) == PLAYER_1 /*&& next_mov.getWinner() != PLAYER_1*/){
                 this->state[line-1][column-1].push(Piece(currentPlayer, pieceSize));
                 this->p2Pieces[pieceSize-1]--;
             }

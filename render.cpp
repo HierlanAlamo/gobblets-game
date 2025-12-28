@@ -155,6 +155,18 @@ RenderGame::RenderGame(){
 void RenderGame::checkBoardAndPlace(){
     Object* piece;
     int isPlaced[3] = {2,2,2};
+
+    for(int p = 0; p < 6; p++){
+        pieces[PLAYER_2-1][p]->isPlaced = false;
+    }
+
+    for(int p = 0; p < 6; p++){
+        if(pieces[PLAYER_2-1][p]->isPlaced == true){
+            pieces[PLAYER_2-1][p]->rect.x = -1000;
+            pieces[PLAYER_2-1][p]->rect.y = -1000;
+        }
+    }
+
     for(int i=0;i<DIMENSIONS;i++){
         for(int j=0;j<DIMENSIONS;j++){
             Player player_ = game->getPlaceHolder(i,j);
@@ -162,11 +174,13 @@ void RenderGame::checkBoardAndPlace(){
             if(game->getPlaceHolder(i,j) == PLAYER_2){
                 if(isPlaced[size_-1] == 2){
                     piece = pieces[player_-1][(size_-1)*2];
+                    piece->isPlaced = true;
                     isPlaced[size_-1] -=1;
                     piece->rect.x = pos[i][j][0] - piece->rect.w/2;
                     piece->rect.y = pos[i][j][1] - piece->rect.h/2;
                 }else if(isPlaced[size_-1] == 1){
                     piece = pieces[player_-1][(size_-1)*2+1];
+                    piece->isPlaced = true;
                     isPlaced[size_-1] -=1;
                     piece->rect.x = pos[i][j][0] - piece->rect.w/2;
                     piece->rect.y = pos[i][j][1] - piece->rect.h/2;
